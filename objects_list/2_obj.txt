@@ -1,0 +1,1 @@
+["boy_1", "boy_2", "table", "LEGO structure", "red dragon-like creature", "sword", "tower-like structure", "window"]
