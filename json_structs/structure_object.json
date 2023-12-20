@@ -1,0 +1,1 @@
+{"type": "structure", "dimensions": {"width": 0, "height": 0, "depth": 0}, "position": {"x": 0, "y": 0, "z": 0}, "rotation": {"x": 0, "y": 0, "z": 0}, "material": {"color": {"r": 0, "g": 0, "b": 0, "a": 0}, "texture": ""}, "shape": {"type": "", "parameters": {}}, "boundingBox": {"min": {"x": 0, "y": 0, "z": 0}, "max": {"x": 0, "y": 0, "z": 0}}, "holes": [], "joints": []}

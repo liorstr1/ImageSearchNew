@@ -4,8 +4,10 @@ import re
 
 from openai import OpenAI
 import replicate
+
+from main_methods.convert_resp_json import convert_resp
 from prompts.get_data_from_image_prompts import LIST_OF_OBJECTS_PROMPT, GET_COORDINATES_PROMPT, \
-    GET_COORDINATES_FROM_TEXT_PROMPT, GET_DESCRIPTION_PROMPT
+    GET_COORDINATES_FROM_TEXT_PROMPT, GET_DESCRIPTION_PROMPT, JSON_STRUCT_PROMPT
 
 SYSTEM = 'system'
 USER = 'user'
@@ -53,7 +55,8 @@ def get_coordinates_from_llava(image_url, list_of_objects):
         "yorickvp/llava-13b:e272157381e2a3bf12df3a8edd1f38d1dbd736bbb7437277c8b34175f8fce358",
         input={
             "image": image_url,
-            "prompt": GET_COORDINATES_PROMPT.format(list_of_objects=list_of_objects)
+            "prompt": GET_COORDINATES_PROMPT.format(list_of_objects=list_of_objects),
+            "max_tokens": 4096
         }
     )
     output_text = ""
@@ -61,29 +64,26 @@ def get_coordinates_from_llava(image_url, list_of_objects):
         output_text += out
 
     try:
-        res = json.loads(output_text)
-    except json.JSONDecodeError as e:
-        def remove_backslash_char_num(string):
-            # This regular expression finds a backslash (\) followed by a letter and a digit
-            return re.sub(r'\\_', '_', string)
-
-        output_string = remove_backslash_char_num(output_text)
-        try:
-            res = json.loads(output_string)
-        except Exception as e:
-            print(e.args)
+        res = convert_resp(output_text)
+        if res is None:
             res = get_list_of_coords_from_gpt4(output_text)
+    except Exception as e:
+        print(e.args)
+        return None
     return {r['object_name']: r['object_coordinates'] for r in res}
 
 
-def get_response_from_gpt(messages, client):
-    response = client.chat.completions.create(
-        messages=messages,
-        model="gpt-4-1106-preview",
-        response_format={"type": "json_object"},
-    )
-    resp = response.choices[0].message.content
-    return json.loads(resp)
+def get_response_from_gpt(messages, client, model="gpt-4-1106-preview"):
+    try:
+        response = client.chat.completions.create(
+            messages=messages,
+            model=model,
+        )
+        resp = response.choices[0].message.content
+        return convert_resp(resp)
+    except Exception as e:
+        print(e.args)
+        return None
 
 
 def get_list_of_coords_from_gpt4(description):
@@ -98,28 +98,42 @@ def get_list_of_coords_from_gpt4(description):
         return None
 
 
-def get_list_of_objects_from_gpt4(text_of_coords):
+def get_list_of_objects_from_gpt4(text_of_coords, model):
     try:
         client = OpenAI(
             api_key=os.environ.get("OPENAI_API_KEY"),
         )
         messages = init_messages(text_of_coords, LIST_OF_OBJECTS_PROMPT)
-        list_of_objects = get_response_from_gpt(messages, client)['objects']
+        list_of_objects = get_response_from_gpt(messages, client, model=model)
         messages = update_chat(
             messages,
             ASSISTANT,
-            "list of objects:" + ",".join(list_of_objects)
+            "list of objects:" + json.dumps(list_of_objects)
         )
         messages = update_chat(
             messages,
             USER,
             "are you sure all objects are valid objects from the description ? if not update the JSON"
         )
-        list_of_objects2 = get_response_from_gpt(messages, client)['objects']
+        list_of_objects2 = get_response_from_gpt(messages, client, model=model)
         return list_of_objects2
     except Exception as e:
         print(e.args)
         return None
+
+
+def get_struct_from_mistral(t):
+    m_input = {
+        "prompt": JSON_STRUCT_PROMPT.format(object_type=t)
+    }
+    output = replicate.run(
+        "mistralai/mistral-7b-instruct-v0.2:f5701ad84de5715051cb99d550539719f8a7fbcf65e0e62a3d1eb3f94720764e",
+        input=m_input
+    )
+    get_data = ""
+    for item in output:
+        get_data += item
+    return convert_resp(get_data)
 
 
 def update_chat(messages: list, role: str, content: str):
@@ -134,7 +148,7 @@ def init_messages(user_prompt, system_prompt):
     return messages
 
 
-def get_description_from_llava(image_url, o_object, coords):
+def get_description_from_llava(image_url, o_object, coords, json_struct):
     output = replicate.run(
         "yorickvp/llava-13b:e272157381e2a3bf12df3a8edd1f38d1dbd736bbb7437277c8b34175f8fce358",
         input={
@@ -142,7 +156,8 @@ def get_description_from_llava(image_url, o_object, coords):
             "prompt": GET_DESCRIPTION_PROMPT.format(
                 image=image_url,
                 coords=coords,
-                object=o_object
+                object=o_object,
+                json_struct=json_struct
             )
         }
     )
@@ -150,17 +165,4 @@ def get_description_from_llava(image_url, o_object, coords):
     for out in output:
         output_text += out
 
-    try:
-        res = json.loads(output_text)
-    except json.JSONDecodeError as e:
-        def remove_backslash_char_num(string):
-            # This regular expression finds a backslash (\) followed by a letter and a digit
-            return re.sub(r'\\_', '_', string)
-
-        output_string = remove_backslash_char_num(output_text)
-        try:
-            res = json.loads(output_string)
-        except Exception as e:
-            print(e.args)
-            res = get_list_of_coords_from_gpt4(output_text)
-    return {r['object_name']: r['object_coordinates'] for r in res}
+    return convert_resp(output_text)
