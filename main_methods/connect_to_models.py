@@ -7,7 +7,7 @@ import replicate
 
 from main_methods.convert_resp_json import convert_resp
 from prompts.get_data_from_image_prompts import LIST_OF_OBJECTS_PROMPT, GET_COORDINATES_PROMPT, \
-    GET_COORDINATES_FROM_TEXT_PROMPT, GET_DESCRIPTION_PROMPT, JSON_STRUCT_PROMPT
+    GET_COORDINATES_FROM_TEXT_PROMPT, GET_DESCRIPTION_PROMPT, TYPE_STRUCT_PROMPT
 
 SYSTEM = 'system'
 USER = 'user'
@@ -124,7 +124,7 @@ def get_list_of_objects_from_gpt4(text_of_coords, model):
 
 def get_struct_from_mistral(t):
     m_input = {
-        "prompt": JSON_STRUCT_PROMPT.format(object_type=t)
+        "prompt": TYPE_STRUCT_PROMPT.format(object_type=t)
     }
     output = replicate.run(
         "mistralai/mistral-7b-instruct-v0.2:f5701ad84de5715051cb99d550539719f8a7fbcf65e0e62a3d1eb3f94720764e",

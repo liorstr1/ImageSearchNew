@@ -77,6 +77,7 @@ class AnalyzeImage:
         object2coordinates = self.get_coordinates_of_objects(list_of_objects)
         type2json_structure = self.get_json_structure(
             list(set([d['type'] for o, d in object2coordinates.items()])),
+            override=True
         )
         object2description = self.get_description_for_all_objects(object2coordinates, type2json_structure)
         h = 0
@@ -130,18 +131,55 @@ class AnalyzeImage:
             save_data_to_json(self.objects2description_path, object2description)
         return object2description
 
-    def get_json_structure(self, list_of_types):
+    def get_json_structure(self, list_of_types, override=False):
         res = {}
         for t in list_of_types:
             t_path = os.path.join(self.json_struct_path, f'{t}_object.json')
             t_struct = try_get_data_from_json(t_path)
-            if t_struct is None:
+            if t_struct is None or override:
                 t_struct = get_struct_from_mistral(t)
                 if t_struct is None:
                     raise Exception("t_struct is None. Terminating the program.")
                 save_data_to_json(t_path, t_struct)
             res[t] = t_struct
         return res
+
+    def get_ocr_from_image(self, lang='eng'):
+        def detect_text_using_pytesseract(path):
+            import pytesseract
+            from PIL import Image
+
+            pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'  # Use a raw string
+            image = Image.open(path)
+            return pytesseract.image_to_string(image, lang='heb').replace('\n', ' ')
+
+        def detect_text_using_google_vision(path):
+            from google.cloud import vision
+            import io
+            """Detects text in the file."""
+            client = vision.ImageAnnotatorClient()
+
+            with io.open(path, 'rb') as image_file:
+                content = image_file.read()
+
+            image = vision.Image(content=content)
+
+            response = client.text_detection(image=image)
+            texts = response.text_annotations
+
+            all_texts = []
+            for text in texts:
+                all_texts.append(text)
+
+            if response.error.message:
+                raise Exception(
+                    '{}\nFor more info on error messages, check: https://cloud.google.com/apis/design/errors'.format(
+                        response.error.message))
+            return all_texts[0].description.replace('\n', ' ')
+
+        google_text = detect_text_using_google_vision(self.image_path)
+        pytesseract_text = detect_text_using_pytesseract(self.image_path)
+        h = 0
 
 
 

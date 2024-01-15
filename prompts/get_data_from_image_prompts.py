@@ -49,9 +49,9 @@ fix this text to be valid JSON format:
 [
 """
 
-JSON_STRUCT_PROMPT = """
-I have a {object_type} object in the image. I want to collect all the information about an object of this type so that I can
-recreate it with maximum fidelity in AI image generators. Prepare for me a list of attributes that I need to fill out
-for an object of this type. Give me the list in JSON format ready for submission, give me empty JSON,
-do not fill the values. Do not add comments to the json
+TYPE_STRUCT_PROMPT = """
+I have a {object_type} object in the image. I want to collect all the information about an object of this type so that
+I can recreate it with maximum fidelity in AI image generators. Prepare for me a list of attributes that I need to
+fill out for an object of this type. Give me the list in the following format: ['attribute1', 'attribute2'...]
+Stick to this JSON format
 """
