@@ -1,1 +1,47 @@
-[{"object": "boys", "type_of_object": "person"}, {"object": "table", "type_of_object": "furniture"}, {"object": "LEGO structure", "type_of_object": "toy"}, {"object": "red dragon-like creature", "type_of_object": "toy"}, {"object": "sword", "type_of_object": "object"}, {"object": "tower-like structure", "type_of_object": "toy"}, {"object": "blocks", "type_of_object": "toy"}, {"object": "hand", "type_of_object": "body part"}, {"object": "camera", "type_of_object": "device"}, {"object": "window", "type_of_object": "structure"}, {"object": "natural light", "type_of_object": "light source"}]
+[
+	{
+		"object": "boy_1",
+		"object_type": "boy",
+		"count": 1
+	},
+	{
+		"object": "boy_2",
+		"object_type": "boy",
+		"count": 1
+	},
+	{
+		"object": "table",
+		"object_type": "table",
+		"object_count": 1
+	},
+	{
+		"object": "LEGO structure",
+		"object_type": "LEGO structure",
+		"object_count": 1
+	},
+	{
+		"object": "dragon-like creature",
+		"object_type": "dragon-like creature",
+		"object_count": 1
+	},
+	{
+		"object": "sword",
+		"object_type": "sword",
+		"object_count": 1
+	},
+	{
+		"object": "tower-like structure",
+		"object_type": "tower-like structure",
+		"object_count": 1
+	},
+	{
+		"object": "colorful blocks",
+		"object_type": "colorful blocks",
+		"object_count": 1
+	},
+	{
+		"object": "window",
+		"object_type": "window",
+		"object_count": 1
+	}
+]

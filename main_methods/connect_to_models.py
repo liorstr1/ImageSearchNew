@@ -7,7 +7,8 @@ import replicate
 
 from main_methods.convert_resp_json import convert_resp
 from prompts.get_data_from_image_prompts import LIST_OF_OBJECTS_PROMPT, GET_COORDINATES_PROMPT, \
-    GET_COORDINATES_FROM_TEXT_PROMPT, GET_DESCRIPTION_PROMPT, TYPE_STRUCT_PROMPT
+    GET_COORDINATES_FROM_TEXT_PROMPT, GET_DESCRIPTION_PROMPT, TYPE_STRUCT_PROMPT, OCR_IMAGE_PROMPT, \
+    TYPE_STRUCT_PROMPT_FORMAT
 
 SYSTEM = 'system'
 USER = 'user'
@@ -78,9 +79,25 @@ def get_response_from_gpt(messages, client, model="gpt-4-1106-preview"):
         response = client.chat.completions.create(
             messages=messages,
             model=model,
+            response_format={"type": "json_object"}
         )
         resp = response.choices[0].message.content
         return convert_resp(resp)
+    except Exception as e:
+        print(e.args)
+        return None
+
+
+def run_object_struct_using_gpt(object_type):
+    try:
+        client = OpenAI(
+            api_key=os.environ.get("OPENAI_API_KEY"),
+        )
+        messages = init_messages(
+            user_prompt=TYPE_STRUCT_PROMPT_FORMAT,
+            system_prompt=TYPE_STRUCT_PROMPT.format(object_type=object_type)
+        )
+        return get_response_from_gpt(messages, client)
     except Exception as e:
         print(e.args)
         return None
@@ -98,25 +115,25 @@ def get_list_of_coords_from_gpt4(description):
         return None
 
 
-def get_list_of_objects_from_gpt4(text_of_coords, model):
+def get_list_of_objects(text_of_coords):
     try:
-        client = OpenAI(
-            api_key=os.environ.get("OPENAI_API_KEY"),
-        )
-        messages = init_messages(text_of_coords, LIST_OF_OBJECTS_PROMPT)
-        list_of_objects = get_response_from_gpt(messages, client, model=model)
-        messages = update_chat(
-            messages,
-            ASSISTANT,
-            "list of objects:" + json.dumps(list_of_objects)
-        )
-        messages = update_chat(
-            messages,
-            USER,
-            "are you sure all objects are valid objects from the description ? if not update the JSON"
-        )
-        list_of_objects2 = get_response_from_gpt(messages, client, model=model)
-        return list_of_objects2
+        return get_response_from_llama(LIST_OF_OBJECTS_PROMPT, text_of_coords)
+        # client = OpenAI(
+        #     api_key=os.environ.get("OPENAI_API_KEY"),
+        # )
+        # messages = init_messages(text_of_coords, LIST_OF_OBJECTS_PROMPT)
+        # list_of_objects = get_response_from_gpt(messages, client, model='gpt-3.5-turbo-1106')
+        # messages = update_chat(
+        #     messages,
+        #     ASSISTANT,
+        #     "list of objects:" + json.dumps(list_of_objects)
+        # )
+        # messages = update_chat(
+        #     messages,
+        #     USER,
+        #     "are you sure all objects are valid objects from the description ? if not update the JSON"
+        # )
+        # list_of_objects2 = get_response_from_gpt(messages, client, model=model)
     except Exception as e:
         print(e.args)
         return None
@@ -166,3 +183,42 @@ def get_description_from_llava(image_url, o_object, coords, json_struct):
         output_text += out
 
     return convert_resp(output_text)
+
+
+def get_image_description_from_llava(image_url):
+    output = replicate.run(
+        "yorickvp/llava-13b:e272157381e2a3bf12df3a8edd1f38d1dbd736bbb7437277c8b34175f8fce358",
+        input={
+            "image": image_url,
+            "prompt": OCR_IMAGE_PROMPT
+        }
+    )
+    output_text = ""
+    for out in output:
+        output_text += out
+
+    return convert_resp(output_text)
+
+
+def get_response_from_llama(system_prompt, prompt):
+    try:
+        output = replicate.run(
+            "meta/llama-2-7b-chat:f1d50bb24186c52daae319ca8366e53debdaa9e0ae7ff976e918df752732ccc4",
+            input={
+                "top_p": 1,
+                "prompt": f'this is the text: {prompt}',
+                "temperature": 0.75,
+                "system_prompt": system_prompt,
+                "max_new_tokens": 800,
+                "repetition_penalty": 1
+            }
+        )
+        res = []
+        for p in output:
+            res.append(p)
+        res = ' '.join(res)
+        return convert_resp(res)
+    except Exception as e:
+        print(e.args)
+        return None
+

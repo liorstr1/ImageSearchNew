@@ -14,13 +14,15 @@ def main_process():
 
 
 def ocr_process():
-    ocr_path = "C:/Users/liors/Desktop/ocr/ocr1.jpg"
-    analyze_image = AnalyzeImage(ocr_path, need_url=True)
-    analyze_image.get_ocr_from_image('heb')
+    all_image_files = get_image_files_from_folder(r"C:\Users\liors\Desktop\ocr", full_path=True)
+    for img in all_image_files:
+        json_path = os.path.splitext(img)[0] + ".json"
+        if os.path.exists(json_path):
+            continue
+        analyze_image = AnalyzeImage(img, need_url=True)
+        analyze_image.get_description_for_one_image('heb')
 
 
 if __name__ == '__main__':
-    ocr_process()
+    # ocr_process()
     main_process()
-
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/

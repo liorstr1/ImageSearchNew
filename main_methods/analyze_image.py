@@ -1,13 +1,15 @@
+import json
 import os
 from imgurpython import ImgurClient
-
+from main_methods.abbyy_sdk import recognize_file_from_code
 from main_methods.connect_to_models import (
-    get_description_from_cogvlm, get_list_of_objects_from_gpt4, get_coordinates_from_llava, get_description_from_llava,
-    get_struct_from_mistral
+    get_description_from_cogvlm, get_list_of_objects, get_coordinates_from_llava, get_description_from_llava,
+    get_struct_from_mistral, get_image_description_from_llava, run_object_struct_using_gpt
 )
 from main_methods.helper_methods import (
-    try_get_description, save_full_description, try_get_data_from_json, save_data_to_json
+    try_get_description, save_full_description, try_get_data_from_json, save_data_to_json, break_down_count
 )
+from main_methods.sequence_alignment import get_consensus
 from main_methods.work_with_imgur import convert_file_to_url, delete_url_image
 from prompts import get_data_from_image_prompts
 from dotenv import load_dotenv
@@ -15,6 +17,8 @@ from dotenv import load_dotenv
 load_dotenv()
 IMGUR_CLIENT_ID = os.getenv('IMGUR_CLIENT_ID')
 IMGUR_CLIENT_SECRET = os.getenv('IMGUR_CLIENT_SECRET')
+
+ocr_space_key = 'K82760919888957'
 
 
 class AnalyzeImage:
@@ -77,7 +81,6 @@ class AnalyzeImage:
         object2coordinates = self.get_coordinates_of_objects(list_of_objects)
         type2json_structure = self.get_json_structure(
             list(set([d['type'] for o, d in object2coordinates.items()])),
-            override=True
         )
         object2description = self.get_description_for_all_objects(object2coordinates, type2json_structure)
         h = 0
@@ -98,11 +101,12 @@ class AnalyzeImage:
     def get_list_of_objects(self, full_description, override=False):
         list_of_objects = try_get_data_from_json(self.objects_list_path)
         if list_of_objects is None or override:
-            list_of_objects = get_list_of_objects_from_gpt4(full_description, model='gpt-3.5-turbo-1106')
+            list_of_objects = get_list_of_objects(full_description)
             if list_of_objects is None:
                 raise Exception("list_of_objects is None. Terminating the program.")
+            list_of_objects = break_down_count(list_of_objects)
             save_data_to_json(self.objects_list_path, list_of_objects)
-        return {o['object']: {'type': o['type_of_object']} for o in list_of_objects}
+        return {o['object'].replace(' ', '_'): {'type': o['object_type'].replace(' ', '_')} for o in list_of_objects}
 
     def get_coordinates_of_objects(self, list_of_objects, override=False):
         def update_list_of_objects(ob, coordinates):
@@ -127,7 +131,7 @@ class AnalyzeImage:
                     obj,
                     data['coords'],
                     type2json_structure[data['type']]
-            )
+                )
             save_data_to_json(self.objects2description_path, object2description)
         return object2description
 
@@ -137,14 +141,17 @@ class AnalyzeImage:
             t_path = os.path.join(self.json_struct_path, f'{t}_object.json')
             t_struct = try_get_data_from_json(t_path)
             if t_struct is None or override:
-                t_struct = get_struct_from_mistral(t)
+                t_struct = run_object_struct_using_gpt(t)
                 if t_struct is None:
                     raise Exception("t_struct is None. Terminating the program.")
                 save_data_to_json(t_path, t_struct)
             res[t] = t_struct
         return res
 
-    def get_ocr_from_image(self, lang='eng'):
+    def get_ocr_from_image(self, lang='eng', threshold=0.5):
+        def detect_text_using_abbyy_ocr(image_path):
+            return recognize_file_from_code(image_path, 'Hebrew', 'txt')
+
         def detect_text_using_pytesseract(path):
             import pytesseract
             from PIL import Image
@@ -179,13 +186,22 @@ class AnalyzeImage:
 
         google_text = detect_text_using_google_vision(self.image_path)
         pytesseract_text = detect_text_using_pytesseract(self.image_path)
-        h = 0
+        abbyy_text = detect_text_using_abbyy_ocr(self.image_path)
 
+        return (
+            get_consensus([google_text, pytesseract_text, abbyy_text], threshold=threshold),
+        )
 
+    def get_description_for_one_image(self, lang):
+        print(f"analyzing: {self.image_path}")
+        try:
+            res = get_image_description_from_llava(self.image_url)
+            res['text'] = self.get_ocr_from_image(lang)
+            res['full_text'] = self.get_ocr_from_image(lang, 0)
 
-
-
-
-
-
-
+            json_path = os.path.splitext(self.image_path)[0] + ".json"
+            with open(json_path, 'w') as f:
+                json.dump(res, f)
+            print(f"job's done: {self.image_path}")
+        except Exception as e:
+            print(f"jobs failed: {self.image_path}: {e.args}")

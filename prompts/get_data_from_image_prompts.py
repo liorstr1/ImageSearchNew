@@ -8,17 +8,15 @@ GET_FULL_DESCRIPTION = """
 """
 
 LIST_OF_OBJECTS_PROMPT = """
-"Please analyze the following text and list all objects mentioned individually.
-If there are multiple objects of the same type, append an index number to each one.
-If it is only one object of the type do not add index.
-for example instead of "3 chairs" return "chair1" , "chair2" and "chair3" 
+Please analyze the text and identify the real-world objects that are mentioned in the text.
 return the list in a JSON format: 
 [
     {
-    "object": the object - each object individually, if there is more then one of this object add an index,
-    "type_of_object" : like person, animal,furniture ect.do not return just "object" as type,give more descriptive type,
+        "object": the object in singular form e.g "boys" become "boy", "chairs" become "chair", 
+        "object_type": the type of the object,
+        "object_count": how many of these objects are mentioned in the text (if it's the same object mentioned twice count it as 1
     }...
-]
+] return just the json without any text before or after
 """
 
 GET_COORDINATES_PROMPT = """
@@ -50,8 +48,25 @@ fix this text to be valid JSON format:
 """
 
 TYPE_STRUCT_PROMPT = """
-I have a {object_type} object in the image. I want to collect all the information about an object of this type so that
-I can recreate it with maximum fidelity in AI image generators. Prepare for me a list of attributes that I need to
-fill out for an object of this type. Give me the list in the following format: ['attribute1', 'attribute2'...]
-Stick to this JSON format
+I have an image featuring a {object_type} that I wish to describe in detail. Could you please provide me with a
+comprehensive list of attributes to describe every aspect of the boy? I am seeking attributes that encompass his
+physical appearance,clothing, etc., focusing solely on the object without contextual features.
+"""
+
+TYPE_STRUCT_PROMPT_FORMAT = """
+Please create the list of attributes for me and return your answer in the following JSON format:
+{'attribute1': 'None', 'attribute2': 'None', ...}
+"""
+
+
+OCR_IMAGE_PROMPT = """
+fill this json:
+    {
+        "full_description": full description of the error 
+        "key_snippet": "key snippet of the full_description - main objects in the image",
+        "background_color": "dominant color in the background"
+        "error_message_text": "text of the error message as visible"
+        "color_scheme": "primary colors of the device",
+        "additional_visual_notes": "any other visually observable details"
+    }
 """

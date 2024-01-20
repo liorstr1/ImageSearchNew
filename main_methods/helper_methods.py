@@ -1,5 +1,6 @@
 import json
 import os
+import inflect as inflect
 
 
 def try_get_description(description_path):
@@ -32,3 +33,32 @@ def save_full_description(description_path, full_description):
 def save_data_to_json(path, obj):
     with open(path, 'w') as f:
         json.dump(obj, f)
+
+
+def break_down_count(list_of_objects):
+    def split_plural_objects(data):
+        sing = p.singular_noun(data['object'])
+        count = data.get('object_count', 0)
+        for idx in range(1, count + 1):
+            new_name = f'{sing}_{idx}'
+            res.append(
+                {
+                    'object': new_name,
+                    'object_type': sing,
+                    'count': 1
+                }
+            )
+    res = []
+    p = inflect.engine()
+    for o in list_of_objects:
+        if o['object_count'] == 1:
+            res.append(
+                {
+                    'object': o['object'],
+                    'object_type': o['object'],
+                    'object_count': 1,
+                }
+            )
+        else:
+            split_plural_objects(o)
+    return res
